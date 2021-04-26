@@ -36,7 +36,7 @@ int seek(int disk_num, int block_num)
   jbod_operation(ops, NULL);
   return 1;
 }
-int min(int n, int n2)
+int findmin(int n, int n2)
 {
   if (n>n2)
     {
@@ -99,6 +99,7 @@ int mdadm_read(uint32_t addr, uint32_t len, uint8_t *buf) {
 
           if ( cache_lookup(disk_num, block_num, buf1) == 1)
 	    {
+	      memcpy(buf,buf1,256-offset);
 	      return 1;
 	    }
 	} 
@@ -109,8 +110,8 @@ int mdadm_read(uint32_t addr, uint32_t len, uint8_t *buf) {
     
    if (counter == 0) //first block bc current block is equal to first block num   
     {
-      memcpy(buf+sumDR, buf1+offset, min((JBOD_BLOCK_SIZE - offset),len));
-      data_read = min((JBOD_BLOCK_SIZE - offset),len);
+      memcpy(buf+sumDR, buf1+offset, findmin((JBOD_BLOCK_SIZE - offset),len));
+      data_read = findmin((JBOD_BLOCK_SIZE - offset),len);
       counter += 1; //increments the counter so not in first block anymore
       //if last block, then disk + 1 to go to next disk  	
     }
@@ -155,11 +156,11 @@ int mdadm_write(uint32_t addr, uint32_t len, const uint8_t *buf) {
     
    if (counter == 0) //first block bc current block is equal to first block num                                                                      
     {
-      memcpy(buf1+offset,buf+sumDR ,min((JBOD_BLOCK_SIZE - offset),len)); //writes the user data len into buf1 from buf
-      seek(disk_num, block_num); //this seeks to the block that needs to be written
+      memcpy(buf1+offset,buf+sumDR ,findmin((JBOD_BLOCK_SIZE - offset),len)); //writes the user data len into buf1 from buf
+      seek(disk_num, block_num); 
       uint32_t ops = encode_operation(JBOD_WRITE_BLOCK, 0, 0); //writes the contents into disk
       jbod_operation(ops,buf1);
-      data_read = min((JBOD_BLOCK_SIZE - offset),len); //calculates what was written
+      data_read = findmin((JBOD_BLOCK_SIZE - offset),len); //calculates what was written
      
       counter += 1; //increments the counter so not in first block anymore                                                                           
     }
@@ -183,11 +184,10 @@ int mdadm_write(uint32_t addr, uint32_t len, const uint8_t *buf) {
       data_read = JBOD_BLOCK_SIZE;
     }
 
-   sumDR = sumDR + data_read; //the sum of all data read
-     total = total - data_read;//keeps track of the bytes left to read                                                                                
-     curr_addy = curr_addy + data_read; //calculates the address
+   sumDR = sumDR + data_read; //the sum of all data read by adding it together
+     total = total - data_read;//keeps track of the bytes left to read by subtracting total by data read                                                                                
+     curr_addy = curr_addy + data_read; //calculates the address by adding data already read
   }
 
-  
  return len;
 }
